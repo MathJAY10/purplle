@@ -1,189 +1,58 @@
-# Design Choices
+# Technology Choices
 
-## YOLOv8n
+This document explains the "why" behind the key technologies used in this project. Our goal was to choose modern, high-performance tools that are also widely used and easy to work with.
 
-### Options considered
+---
 
-- YOLOv8n
-- Larger YOLO variants
-- Other detectors
+### Backend Framework: FastAPI
 
-### Pros
+*   **What it is:** A modern, high-performance web framework for building APIs with Python.
+*   **Why we chose it:**
+    *   **Speed:** It's one of the fastest Python frameworks available, which is important for a responsive analytics dashboard.
+    *   **Ease of Use:** It uses standard Python type hints to define API endpoints, which makes the code clean, easy to read, and less error-prone.
+    *   **Automatic Docs:** It automatically generates interactive API documentation (like Swagger UI), which is incredibly helpful for development and testing.
+*   **Alternative Considered:** Django Rest Framework. We chose FastAPI because it's lighter, faster, and its modern async capabilities were a better fit for this project.
 
-- Lightweight and fast.
-- Good baseline accuracy for person detection.
-- Easier to run locally and in Docker.
+---
 
-### Cons
+### Message Queue: Redis Streams
 
-- Lower accuracy than larger models.
-- Can miss small or occluded people in difficult footage.
+*   **What it is:** A feature of the Redis in-memory database that provides a persistent, log-like message queue.
+*   **Why we chose it:**
+    *   **Decoupling:** It acts as a buffer between the CV pipeline (producing data) and the worker (processing data). This makes the system more resilient; if the worker is slow or offline, data from the cameras isn't lost.
+    *   **Performance:** Redis is extremely fast, which is perfect for handling a high volume of real-time events from many cameras.
+    *   **Simplicity:** It's simpler to set up and manage than larger, more complex message brokers like RabbitMQ or Kafka, making it a good fit for this project's scale.
+*   **Alternative Considered:** RabbitMQ. We chose Redis Streams for its simplicity and because we were already planning to use Redis for other caching purposes (a common use case).
 
-### Final reasoning
+---
 
-YOLOv8n is the best tradeoff for a challenge that values production readiness and demo speed over maximum detection accuracy.
+### Database: PostgreSQL
 
-### Operational tradeoff
+*   **What it is:** A powerful, open-source relational database (SQL).
+*   **Why we chose it:**
+    *   **Reliability & Power:** It's known for being extremely reliable and feature-rich. It can handle the complex queries needed for our analytics (e.g., calculating funnels, time-based metrics, and anomalies).
+    *   **Structured Data:** A traditional SQL database was the right choice because our data has a clear, predictable structure (events, sessions, metrics).
+    *   **Maturity:** It's a mature technology with a huge community and excellent documentation.
+*   **Alternative Considered:** NoSQL databases like MongoDB. We chose PostgreSQL because our data relationships and query patterns were better suited to a structured SQL model.
 
-Slightly lower accuracy is acceptable because the architecture allows model replacement later without changing the pipeline.
+---
 
-## ByteTrack
+### Computer Vision: YOLOv8 & Custom Tracking
 
-### Options considered
+*   **What they are:**
+    *   **YOLOv8:** A state-of-the-art, real-time object detection model. We use it to find people in each frame of the video.
+    *   **ByteTrack (Concept):** Our custom tracking logic is based on the principles of ByteTrack, an efficient algorithm for tracking objects (in our case, people) from one frame to the next.
+*   **Why we chose them:**
+    *   **Performance:** YOLO is famous for its balance of speed and accuracy, making it possible to process video streams in near real-time.
+    *   **Accuracy:** It provides reliable detections, which is crucial for accurate counting and tracking.
+    *   **Practicality:** By combining a powerful detector (YOLO) with an efficient tracker (ByteTrack principles), we built a pipeline that is both accurate and computationally efficient.
 
-- ByteTrack
-- DeepSORT
-- Custom tracking logic
+---
 
-### Pros
+### Background Jobs: Dedicated Python Workers
 
-- Stable track IDs with minimal overhead.
-- Strong fit for detection-to-tracking pipelines.
-- No re-identification complexity required.
-
-### Cons
-
-- Not ideal for long-term identity across cameras.
-
-### Final reasoning
-
-ByteTrack is enough for stable in-store trajectories and event generation.
-
-### Operational tradeoff
-
-The system avoids the complexity of re-identification and cross-camera stitching until it is truly needed.
-
-## Redis Streams Instead of Kafka
-
-### Options considered
-
-- Redis Streams
-- Kafka
-
-### Pros of Redis Streams
-
-- Simpler local and Docker operations.
-- Enough for challenge-scale buffering and consumer groups.
-- Lower configuration and maintenance burden.
-
-### Cons
-
-- Less ecosystem maturity than Kafka.
-- Fewer advanced streaming features.
-
-### Final reasoning
-
-Redis Streams is the correct complexity level for this project.
-
-### Operational tradeoff
-
-The solution stays easy to run and demo while preserving a real event-driven architecture.
-
-## Modular Monolith Instead of Microservices
-
-### Options considered
-
-- Modular monolith
-- Microservices
-
-### Pros of modular monolith
-
-- Easier to test.
-- Easier to deploy.
-- Easier to reason about.
-- Shared domain contracts stay consistent.
-
-### Cons
-
-- Requires discipline to keep boundaries clean.
-
-### Final reasoning
-
-The workload is cohesive enough that service boundaries would add more cost than value.
-
-### Operational tradeoff
-
-The codebase must remain modular and disciplined, but operational complexity stays low.
-
-## Event-Driven Architecture
-
-### Options considered
-
-- Event-driven pipeline
-- Direct synchronous writes from CV to DB
-
-### Pros
-
-- Decouples producer and consumer.
-- Improves throughput.
-- Buffers bursts.
-- Supports retries and eventual consistency.
-
-### Cons
-
-- More moving parts than direct writes.
-
-### Final reasoning
-
-This is the natural model for movement-derived retail intelligence.
-
-### Operational tradeoff
-
-The system accepts eventual consistency in exchange for resilience and scale.
-
-## Immutable Events
-
-### Options considered
-
-- Immutable append-only events
-- Mutable operational rows
-
-### Pros
-
-- Better auditability.
-- Easier replay and debugging.
-- Safer analytics derivation.
-
-### Cons
-
-- Requires derived read models for convenience.
-
-### Final reasoning
-
-Retail intelligence is easier to trust when the source facts are immutable.
-
-## PostgreSQL
-
-### Options considered
-
-- PostgreSQL
-- SQLite
-- NoSQL store
-
-### Pros
-
-- Strong transactional guarantees.
-- Good indexing and aggregation support.
-- Great fit for sessions and event facts.
-
-### Cons
-
-- Less elastic than specialized analytics engines at large scale.
-
-### Final reasoning
-
-PostgreSQL is the correct source of truth for this project.
-
-## Intentionally Not Implemented
-
-- Re-identification
-- Multi-camera identity stitching
-- Dashboard UI beyond documentation placeholders
-- Heatmap visualization front end
-- Advanced anomaly ML models
-- Kafka
-- Microservices
-
-### Why
-
-These would increase complexity without improving the core challenge score at this stage. The project focuses on correctness, maintainability, and production readiness.
+*   **What it is:** A separate Python process that runs in the background to consume events from Redis and save them to the database.
+*   **Why we chose it:**
+    *   **Separation of Concerns:** This approach separates the immediate task of serving API requests (done by FastAPI) from the longer-running task of processing event data. This ensures the API remains fast and responsive, even when there's a large backlog of events to process.
+    *   **Scalability:** If the number of events increases, we can simply run more worker processes to handle the load, without affecting the API server.
+*   **Alternative Considered:** Celery. We chose a simple, custom Python worker for this project because our background tasks are straightforward (read from Redis, write to DB), and we didn't need the complexity and overhead of a large framework like Celery.

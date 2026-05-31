@@ -60,3 +60,28 @@ The project is organized into clear, distinct modules:
 *   `/configs`: Store-specific configurations, like camera locations and line coordinates.
 
 For a deeper dive into the architecture and technology choices, please see [DESIGN.md](DESIGN.md) and [CHOICES.md](CHOICES.md).
+
+## System Flow
+
+```mermaid
+flowchart LR
+
+    Video[CCTV Video]
+    YOLO[YOLO Person Detection]
+    Track[ByteTrack Tracking]
+    Event[ENTRY / EXIT Events]
+    Redis[Redis Streams]
+    Worker[Background Worker]
+    DB[(PostgreSQL)]
+    API[FastAPI]
+    Dashboard[Analytics Dashboard]
+
+    Video --> YOLO
+    YOLO --> Track
+    Track --> Event
+    Event --> Redis
+    Redis --> Worker
+    Worker --> DB
+    DB --> API
+    API --> Dashboard
+```

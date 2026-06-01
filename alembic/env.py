@@ -19,6 +19,10 @@ target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
+    # Ensure script_location is set
+    if not config.get_main_option("script_location"):
+        config.set_main_option("script_location", "alembic")
+    
     settings = get_settings()
     context.configure(
         url=settings.database_url,
@@ -33,6 +37,11 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     settings = get_settings()
+    
+    # Ensure script_location is set
+    if not config.get_main_option("script_location"):
+        config.set_main_option("script_location", "alembic")
+    
     configuration = config.get_section(config.config_ini_section) or {}
     configuration["sqlalchemy.url"] = settings.database_url.replace("+asyncpg", "")
     connectable = engine_from_config(configuration, prefix="sqlalchemy.", poolclass=pool.NullPool)

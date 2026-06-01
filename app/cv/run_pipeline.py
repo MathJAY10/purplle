@@ -26,14 +26,24 @@ async def main() -> None:
 
     args = parse_args()
     settings = get_settings()
+
     store_config = StoreConfigLoader(settings.store_config_dir).load(args.store_id)
-    camera_config = next((camera for camera in store_config.cameras if camera.camera_id == args.camera_id), None)
+
+    camera_config = next(
+        (camera for camera in store_config.cameras if camera.camera_id == args.camera_id),
+        None,
+    )
+
     if camera_config is None:
-        raise RuntimeError(f"Camera {args.camera_id} not found in store config {args.store_id}")
+        raise RuntimeError(
+            f"Camera {args.camera_id} not found in store config {args.store_id}"
+        )
 
     container = build_container(settings)
+
     try:
         line = camera_config.entry_line
+
         line_config = LineCrossingConfig(
             x1=float(line[0]["x"]),
             y1=float(line[0]["y"]),
@@ -42,9 +52,17 @@ async def main() -> None:
             debounce_frames=settings.cv_debounce_frames,
             track_ttl_frames=settings.cv_track_ttl_frames,
         )
-        detector = DetectorService(confidence_threshold=camera_config.thresholds.get("confidence", settings.cv_confidence_threshold))
+
+        detector = DetectorService(
+            confidence_threshold=camera_config.thresholds.get(
+                "confidence",
+                settings.cv_confidence_threshold,
+            )
+        )
+
         tracker = TrackerService(frame_rate=30)
         generator = LineCrossingEventGenerator(line_config)
+
         processor = FrameProcessor(
             detector=detector,
             tracker=tracker,
@@ -52,11 +70,20 @@ async def main() -> None:
             publisher=container.event_publisher,
             store_id=args.store_id,
             camera_id=args.camera_id,
-            debug_visualization=args.debug_visualization or settings.cv_debug_visualization,
-            visualizer=DebugVisualizer() if (args.debug_visualization or settings.cv_debug_visualization) else None,
+            debug_visualization=args.debug_visualization
+            or settings.cv_debug_visualization,
+            visualizer=DebugVisualizer()
+            if (args.debug_visualization or settings.cv_debug_visualization)
+            else None,
         )
-        with VideoStreamReader(args.video, frame_skip=camera_config.frame_skip or settings.cv_frame_skip) as reader:
-            await processor.process_video(reader)
+
+        with VideoStreamReader(
+            args.video,
+            frame_skip=camera_config.frame_skip or settings.cv_frame_skip,
+        ) as reader:
+            total_events = await processor.process_video(reader)
+            print(f"TOTAL EVENTS GENERATED = {total_events}")
+
     finally:
         await container.aclose()
 

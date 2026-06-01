@@ -1,80 +1,36 @@
 # Retail Store Analytics Platform
 
-This project is a complete analytics platform for physical retail stores. It uses computer vision to track customer movement, providing valuable insights like peak hours, customer traffic funnels, and store layout effectiveness.
+A computer vision powered retail analytics platform that transforms CCTV footage into actionable business insights. The system detects customer entry and exit events, tracks customer movement, generates analytics, and persists customer sessions using an event-driven architecture.
 
-**Business Goal:** To give physical stores the same kind of powerful analytics that e-commerce websites have, helping them optimize operations and improve customer experience.
+## Project Overview
+
+Physical retail stores often lack the detailed customer analytics available in e-commerce platforms. This project bridges that gap by using computer vision and event processing to provide:
+
+* Customer entry and exit tracking
+* Real-time occupancy estimation
+* Customer session analytics
+* Traffic pattern analysis
+* Event-driven retail insights
+* Historical analytics through APIs
+
+## Architecture
 
 ![Architecture Diagram](architecture.png)
 
-## What it Does
-
-*   **Tracks Customer Flow:** Analyzes video from store cameras to count how many people enter and exit.
-*   **Calculates Key Metrics:** Provides real-time data on store traffic, average visit duration, and occupancy.
-*   **Visualizes Traffic Hotspots:** Generates heatmaps to show which areas of the store are most popular.
-*   **Identifies Conversion Funnels:** Measures how many people pass by versus how many enter, helping to gauge the effectiveness of window displays.
-*   **Detects Anomalies:** Automatically flags unusual traffic patterns that might indicate an issue or opportunity.
-
-## Getting Started
-
-The entire application is containerized and can be run with a single command.
-
-**Prerequisites:**
-*   Docker
-*   Docker Compose
-
-**Running the Application:**
-
-1.  **Clone the repository:**
-    ```bash
-    git clone <repository-url>
-    cd <repository-name>
-    ```
-
-2.  **Set up environment variables:**
-    ```bash
-    cp .env.example .env
-    ```
-    *(You can modify the `.env` file if needed, but the defaults will work out-of-the-box.)*
-
-3.  **Build and run the services:**
-    ```bash
-    docker-compose up --build
-    ```
-
-This command will start the FastAPI web server, the background worker, the Redis message queue, and the PostgreSQL database.
-
-*   **API:** The API will be available at `http://localhost:8000/docs`.
-*   **Running the CV Pipeline:** To process a sample video, run the following command in a separate terminal:
-    ```bash
-    docker-compose run --rm cv-pipeline --video ./samples/sample.mp4 --store-id default --camera-id 1
-    ```
-
-## Project Structure
-
-The project is organized into clear, distinct modules:
-
-*   `/app`: Contains the core application logic, including the FastAPI server, database models, and business services.
-*   `/cv`: Holds the computer vision pipeline responsible for video processing and event generation.
-*   `/workers`: Contains the background worker that processes data from the CV pipeline.
-*   `/tests`: Includes a suite of tests to ensure the system is working correctly.
-*   `/configs`: Store-specific configurations, like camera locations and line coordinates.
-
-For a deeper dive into the architecture and technology choices, please see [DESIGN.md](DESIGN.md) and [CHOICES.md](CHOICES.md).
-
-## System Flow
+### System Flow
 
 ```mermaid
 flowchart LR
 
-    Video[CCTV Video]
-    YOLO[YOLO Person Detection]
-    Track[ByteTrack Tracking]
-    Event[ENTRY / EXIT Events]
+    Video[CCTV Video / MP4]
+    YOLO[YOLOv8 Person Detection]
+    Track[ByteTrack Multi Object Tracking]
+    Event[Entry / Exit Event Generation]
     Redis[Redis Streams]
     Worker[Background Worker]
     DB[(PostgreSQL)]
     API[FastAPI]
-    Dashboard[Analytics Dashboard]
+    Dashboard[Analytics Consumers]
 
     Video --> YOLO
     YOLO --> Track
@@ -85,3 +41,194 @@ flowchart LR
     DB --> API
     API --> Dashboard
 ```
+
+## Technology Stack
+
+### Computer Vision
+
+* YOLOv8
+* ByteTrack
+* OpenCV
+
+### Backend
+
+* FastAPI
+* Python 3.12
+* SQLAlchemy
+* Alembic
+
+### Infrastructure
+
+* PostgreSQL
+* Redis Streams
+* Docker
+* Docker Compose
+
+### Testing
+
+* Pytest
+
+## Key Features
+
+### Customer Flow Analytics
+
+* Detect customer entries
+* Detect customer exits
+* Track occupancy changes
+
+### Event Driven Architecture
+
+* Generate entry and exit events
+* Publish events to Redis Streams
+* Process events asynchronously
+
+### Session Analytics
+
+* Customer session creation
+* Session closure on exit
+* Visit duration tracking
+
+### Analytics APIs
+
+* Traffic analytics
+* Occupancy analytics
+* Session analytics
+* Historical metrics
+
+## Project Structure
+
+```text
+app/
+├── api/
+├── core/
+├── cv/
+├── db/
+├── domain/
+├── infrastructure/
+├── services/
+├── workers/
+
+configs/
+tests/
+docker-compose.yml
+```
+
+## Getting Started
+
+### Prerequisites
+
+* Docker
+* Docker Compose
+
+### Run Application
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+### API Documentation
+
+```text
+http://localhost:8000/docs
+```
+
+## Running the CV Pipeline
+
+```bash
+docker compose exec worker \
+python -m app.cv.run_pipeline \
+--video "samples/CAM 5.mp4" \
+--store default \
+--camera entry
+```
+
+## End-to-End Validation
+
+The system was validated using real CCTV footage.
+
+### Test Scenario
+
+Input Video:
+
+* CAM5.mp4
+
+Pipeline:
+
+Video
+→ YOLOv8 Detection
+→ ByteTrack Tracking
+→ Line Crossing
+→ Redis Streams
+→ Worker Processing
+→ PostgreSQL Persistence
+
+### Validation Results
+
+| Metric           | Result |
+| ---------------- | ------ |
+| Events Generated | 10     |
+| Entry Events     | 6      |
+| Exit Events      | 4      |
+| Sessions Created | 5      |
+| Active Sessions  | 4      |
+| Closed Sessions  | 1      |
+
+### Database Verification
+
+Events:
+
+```text
+ENTRY = 6
+EXIT = 4
+```
+
+Sessions:
+
+```text
+active = 4
+closed = 1
+```
+
+### Verified Components
+
+✓ YOLOv8 Detection
+
+✓ ByteTrack Tracking
+
+✓ Line Crossing Event Generation
+
+✓ Redis Stream Publishing
+
+✓ Worker Consumption
+
+✓ PostgreSQL Persistence
+
+✓ Session Management
+
+## Demo
+
+Repository:
+
+* GitHub Repository
+
+Video:
+
+* Project Demonstration Video
+
+API:
+
+* Swagger Documentation
+
+## Future Improvements
+
+* Heatmap generation
+* Multi-camera tracking
+* Re-identification across cameras
+* Dwell time analytics
+* Real-time dashboard
+* Cloud deployment
+
+## License
+
+Educational / Portfolio Project

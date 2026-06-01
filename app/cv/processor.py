@@ -4,7 +4,7 @@ import logging
 from dataclasses import dataclass
 from time import perf_counter
 
-from app.cv.crossing import LineCrossingConfig, LineCrossingEventGenerator
+from app.cv.crossing import LineCrossingEventGenerator
 from app.cv.detector import DetectorService
 from app.cv.tracker import TrackerService
 from app.cv.video import VideoStreamReader
@@ -27,10 +27,24 @@ class FrameProcessor:
 
     async def process_video(self, reader: VideoStreamReader) -> int:
         total_events = 0
+
+        print("=== PIPELINE STARTED ===")
+
         for frame in reader.iter_frames():
             started_at = perf_counter()
+
             detections = await self.detector.detect(frame.image)
-            tracked_objects = await self.tracker.track(detections, frame_number=frame.frame_number)
+
+            tracked_objects = await self.tracker.track(
+                detections,
+                frame_number=frame.frame_number,
+            )
+
+            print(
+                f"FRAME={frame.frame_number} "
+                f"DETECTIONS={len(detections)} "
+                f"TRACKED={len(tracked_objects)}"
+            )
 
             for tracked_object in tracked_objects:
                 events = self.event_generator.update(
@@ -39,9 +53,23 @@ class FrameProcessor:
                     tracked_object=tracked_object,
                     frame_number=frame.frame_number,
                 )
+
+                if events:
+                    print(
+                        f"EVENTS GENERATED={len(events)} "
+                        f"TRACK_ID={tracked_object.track_id}"
+                    )
+
                 for event in events:
+                    print(
+                        f"PUBLISHING EVENT -> "
+                        f"{event.event_type.value}"
+                    )
+
                     await self.publisher.publish(event)
+
                     total_events += 1
+
                     logger.info(
                         "cv_event_generated",
                         extra={
@@ -56,19 +84,38 @@ class FrameProcessor:
             self.event_generator.prune(frame.frame_number)
 
             if self.debug_visualization and self.visualizer is not None:
-                self.visualizer.draw(frame.image, tracked_objects, self.event_generator.config)
+                self.visualizer.draw(
+                    frame.image,
+                    tracked_objects,
+                    self.event_generator.config,
+                )
 
-            latency_ms = round((perf_counter() - started_at) * 1000, 2)
+            latency_ms = round(
+                (perf_counter() - started_at) * 1000,
+                2,
+            )
+
             logger.info(
                 "cv_frame_processed",
                 extra={
-                    "track_id": tracked_objects[0].track_id if tracked_objects else None,
+                    "track_id": (
+                        tracked_objects[0].track_id
+                        if tracked_objects
+                        else None
+                    ),
                     "camera_id": self.camera_id,
                     "event_type": None,
-                    "confidence": tracked_objects[0].detection.confidence if tracked_objects else None,
+                    "confidence": (
+                        tracked_objects[0].detection.confidence
+                        if tracked_objects
+                        else None
+                    ),
                     "frame_number": frame.frame_number,
                     "latency_ms": latency_ms,
                 },
             )
+
+        print("=== PIPELINE FINISHED ===")
+        print(f"TOTAL EVENTS GENERATED = {total_events}")
 
         return total_events

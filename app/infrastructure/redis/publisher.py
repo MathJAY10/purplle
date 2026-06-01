@@ -20,7 +20,12 @@ class RedisStreamEventPublisher:
 
     async def ensure_consumer_group(self, group_name: str) -> None:
         try:
-            await self.redis.xgroup_create(name=self.stream_name, groupname=group_name, id="0", mkstream=True)
+            await self.redis.xgroup_create(
+                name=self.stream_name,
+                groupname=group_name,
+                id="0",
+                mkstream=True,
+            )
         except Exception as exc:  # noqa: BLE001
             if "BUSYGROUP" not in str(exc):
                 raise
@@ -38,12 +43,32 @@ class RedisStreamEventPublisher:
             "payload": event.model_dump_json(),
             "trace_id": event.trace_id or "",
         }
+
+        print("=" * 60)
+        print("PUBLISH CALLED")
+        print(f"STREAM NAME = {self.stream_name}")
+        print(f"EVENT TYPE  = {event.event_type.value}")
+        print(f"TRACK ID    = {event.track_id}")
+        print("=" * 60)
+
         last_error: Exception | None = None
+
         for attempt in range(1, self.max_retries + 1):
             try:
-                return await self.redis.xadd(self.stream_name, event_data)
+                message_id = await self.redis.xadd(
+                    self.stream_name,
+                    event_data,
+                )
+
+                print(f"REDIS XADD SUCCESS -> {message_id}")
+
+                return message_id
+
             except Exception as exc:  # noqa: BLE001
+                print(f"REDIS XADD FAILED -> {exc}")
+
                 last_error = exc
+
                 logger.warning(
                     "redis_publish_retry",
                     extra={
@@ -53,6 +78,7 @@ class RedisStreamEventPublisher:
                         "attempt": attempt,
                     },
                 )
+
                 if attempt < self.max_retries:
                     await sleep(self.retry_delay_seconds * attempt)
 
@@ -65,4 +91,9 @@ class RedisStreamEventPublisher:
                 "error": str(last_error) if last_error is not None else "unknown",
             },
         )
-        raise last_error if last_error is not None else RuntimeError("Redis publish failed")
+
+        raise (
+            last_error
+            if last_error is not None
+            else RuntimeError("Redis publish failed")
+        )

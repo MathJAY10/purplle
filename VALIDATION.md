@@ -1,224 +1,120 @@
 # Testing & Validation
 
-This document describes the testing strategy and validation approach used to verify the correctness and reliability of the Retail Store Analytics Platform.
+## Testing Strategy
 
----
+The project uses multiple testing layers:
 
-# Testing Strategy
-
-The project uses a combination of:
-
-1. Unit Tests
-2. Integration Tests
+1. Unit Testing
+2. Integration Testing
 3. End-to-End Validation
 
-All automated tests are implemented using Pytest.
+---
+
+## Automated Tests
+
+Executed using Pytest.
+
+Results:
+
+24/24 tests passed.
+
+Covered Areas:
+
+* Line Crossing Logic
+* Event Persistence
+* Session Management
+* Queue Analytics
+* Purchase Correlation
+* Anomaly Detection
+* Redis Integration
+* POS Ingestion
+* API Validation
+* Idempotency
 
 ---
 
-# Automated Test Coverage
+## End-to-End Validation
 
-## 1. Line Crossing Logic
+A real CCTV video was processed through the complete architecture.
 
-File:
+Input:
 
-```text
-test_line_crossing.py
-```
+CAM 5.mp4
 
-Purpose:
+Pipeline:
 
-* Verify ENTRY event generation
-* Verify EXIT event generation
-* Prevent duplicate events
-* Validate crossing direction
+Video
 
-Checks:
+↓
 
-* Entry crossing creates ENTRY event
-* Exit crossing creates EXIT event
-* Hovering near line does not create duplicates
+YOLOv8
 
----
+↓
 
-## 2. Database Persistence
+ByteTrack
 
-File:
+↓
 
-```text
-test_db_persistence.py
-```
+Event Generation
 
-Purpose:
+↓
 
-Verify that processed events are stored correctly.
+Redis Streams
 
-Checks:
+↓
 
-* EventRecord creation
-* SessionRecord creation
-* Event-session linking
-* Correct timestamps
+Worker Processing
+
+↓
+
+PostgreSQL
 
 ---
 
-## 3. Idempotency
+## Validation Outcome
 
-File:
+Verified:
 
-```text
-test_idempotency.py
-```
+✓ Detection Pipeline
 
-Purpose:
+✓ Tracking Pipeline
 
-Ensure duplicate event processing does not create duplicate database records.
+✓ Event Generation
 
-Checks:
-
-* Same event processed multiple times
-* Only one database record created
-* Session consistency maintained
-
----
-
-## 4. Analytics Validation
-
-Files:
-
-```text
-test_metrics.py
-test_anomalies.py
-```
-
-Purpose:
-
-Verify analytics calculations.
-
-Checks:
-
-* Traffic metrics
-* Occupancy calculations
-* Conversion funnel calculations
-* Anomaly detection logic
-
----
-
-## 5. API Validation
-
-Purpose:
-
-Verify API correctness.
-
-Checks:
-
-* Endpoint responses
-* Status codes
-* Schema validation
-* Analytics endpoints
-
----
-
-# Running Tests
-
-Run all tests:
-
-```bash
-docker compose run --rm api pytest
-```
-
-Expected Result:
-
-```text
-16 tests passed
-```
-
----
-
-# End-to-End Validation
-
-The complete system was validated using real CCTV footage.
-
-## Test Video
-
-```text
-CAM5.mp4
-```
-
-## Pipeline
-
-CCTV Video
-→ YOLOv8 Detection
-→ ByteTrack Tracking
-→ Entry/Exit Event Generation
-→ Redis Streams
-→ Worker Processing
-→ PostgreSQL
-
----
-
-## Validation Results
-
-### Event Generation
-
-```text
-Events Generated = 10
-```
-
-### Event Distribution
-
-```text
-ENTRY = 6
-EXIT  = 4
-```
-
-### Session Creation
-
-```text
-Sessions Created = 5
-Active Sessions  = 4
-Closed Sessions  = 1
-```
-
-### Redis Verification
-
-```text
-Redis Stream Length = 10
-```
-
-### PostgreSQL Verification
-
-```text
-Events Stored   = 10
-Sessions Stored = 5
-```
-
----
-
-# Verified Components
-
-✓ YOLOv8 Detection
-
-✓ ByteTrack Tracking
-
-✓ Entry / Exit Event Generation
-
-✓ Redis Stream Publishing
+✓ Redis Publishing
 
 ✓ Worker Consumption
 
-✓ PostgreSQL Persistence
+✓ Database Persistence
 
 ✓ Session Lifecycle Management
 
-✓ API Layer
+✓ Analytics Processing
+
+✓ API Availability
 
 ---
 
-# Outcome
+## Infrastructure Verification
+
+Docker Services:
+
+* API Healthy
+* Worker Healthy
+* PostgreSQL Healthy
+* Redis Healthy
+
+Migrations:
+
+* Successfully Applied
+
+Database:
+
+* Events Persisted
+* Sessions Persisted
+
+Result:
 
 PASS
 
-The platform successfully processed CCTV footage, generated customer movement events, published them through Redis Streams, consumed them using background workers, and persisted customer sessions in PostgreSQL.
-
-The complete event lifecycle from video ingestion to database persistence was validated successfully.
+The complete event lifecycle from video ingestion to analytics persistence was successfully validated.

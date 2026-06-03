@@ -1,46 +1,92 @@
 # Retail Store Analytics Platform
 
-A computer vision powered retail analytics platform that transforms CCTV footage into actionable business insights. The system detects customer entry and exit events, tracks customer movement, generates analytics, and persists customer sessions using an event-driven architecture.
+A production-oriented computer vision platform that converts CCTV footage into actionable retail analytics. The system detects customer movement, tracks visitor journeys, measures queue behavior, correlates purchases, and identifies operational anomalies using an event-driven architecture.
 
-## Project Overview
+---
 
-Physical retail stores often lack the detailed customer analytics available in e-commerce platforms. This project bridges that gap by using computer vision and event processing to provide:
+## Problem Statement
 
-* Customer entry and exit tracking
-* Real-time occupancy estimation
-* Customer session analytics
-* Traffic pattern analysis
-* Event-driven retail insights
-* Historical analytics through APIs
+Physical retail stores often lack visibility into customer behavior beyond POS transactions. Unlike e-commerce platforms, store operators cannot easily answer questions such as:
 
-## Architecture
+* How many visitors entered the store?
+* How many visitors reached the billing counter?
+* How many left without purchasing?
+* When do queues become unusually large?
+* Which store zones receive the most traffic?
 
-![Architecture Diagram](architecture.png)
+This platform bridges that gap by transforming CCTV footage into structured business events and analytics.
 
-### System Flow
+---
 
-```mermaid
-flowchart LR
+## Key Features
 
-    Video[CCTV Video / MP4]
-    YOLO[YOLOv8 Person Detection]
-    Track[ByteTrack Multi Object Tracking]
-    Event[Entry / Exit Event Generation]
-    Redis[Redis Streams]
-    Worker[Background Worker]
-    DB[(PostgreSQL)]
-    API[FastAPI]
-    Dashboard[Analytics Consumers]
+### Computer Vision
 
-    Video --> YOLO
-    YOLO --> Track
-    Track --> Event
-    Event --> Redis
-    Redis --> Worker
-    Worker --> DB
-    DB --> API
-    API --> Dashboard
-```
+* YOLOv8 Person Detection
+* ByteTrack Multi-Object Tracking
+* Visitor Re-Identification
+* Staff Detection
+* Entry and Exit Detection
+* Zone Tracking
+
+### Event Processing
+
+* Redis Streams Event Pipeline
+* Consumer Group Based Processing
+* Idempotent Event Handling
+* Session Lifecycle Management
+* Event Persistence
+
+### Analytics
+
+* Traffic Analytics
+* Occupancy Analytics
+* Queue Analytics
+* Purchase Funnel Analytics
+* Conversion Tracking
+* Anomaly Detection
+
+### POS Integration
+
+* CSV Transaction Upload
+* Timezone Safe Processing
+* Purchase Attribution Engine
+
+---
+
+## System Flow
+
+CCTV Video
+
+↓
+
+YOLOv8 Detection
+
+↓
+
+ByteTrack Tracking
+
+↓
+
+Business Event Generation
+
+↓
+
+Redis Streams
+
+↓
+
+Worker Processing
+
+↓
+
+PostgreSQL
+
+↓
+
+Analytics APIs
+
+---
 
 ## Technology Stack
 
@@ -53,7 +99,7 @@ flowchart LR
 ### Backend
 
 * FastAPI
-* Python 3.12
+* Python 3.11+
 * SQLAlchemy
 * Alembic
 
@@ -68,167 +114,66 @@ flowchart LR
 
 * Pytest
 
-## Key Features
+---
 
-### Customer Flow Analytics
+## Validation Results
 
-* Detect customer entries
-* Detect customer exits
-* Track occupancy changes
+### Automated Testing
 
-### Event Driven Architecture
+* 24/24 tests passed
 
-* Generate entry and exit events
-* Publish events to Redis Streams
-* Process events asynchronously
-
-### Session Analytics
-
-* Customer session creation
-* Session closure on exit
-* Visit duration tracking
-
-### Analytics APIs
-
-* Traffic analytics
-* Occupancy analytics
-* Session analytics
-* Historical metrics
-
-## Project Structure
-
-```text
-app/
-├── api/
-├── core/
-├── cv/
-├── db/
-├── domain/
-├── infrastructure/
-├── services/
-├── workers/
-
-configs/
-tests/
-docker-compose.yml
-```
-
-## Getting Started
-
-### Prerequisites
-
-* Docker
-* Docker Compose
-
-### Run Application
-
-```bash
-cp .env.example .env
-docker compose up --build
-```
-
-### API Documentation
-
-```text
-http://localhost:8000/docs
-```
-
-## Running the CV Pipeline
-
-```bash
-docker compose exec worker \
-python -m app.cv.run_pipeline \
---video "samples/CAM 5.mp4" \
---store default \
---camera entry
-```
-
-## End-to-End Validation
-
-The system was validated using real CCTV footage.
-
-### Test Scenario
+### Real CCTV Validation
 
 Input Video:
 
-* CAM5.mp4
+* CAM 5.mp4
 
-Pipeline:
+Validated Flow:
 
-Video
-→ YOLOv8 Detection
-→ ByteTrack Tracking
-→ Line Crossing
-→ Redis Streams
-→ Worker Processing
-→ PostgreSQL Persistence
+Video → Detection → Tracking → Redis → Worker → PostgreSQL
 
-### Validation Results
+Observed Results:
 
-| Metric           | Result |
-| ---------------- | ------ |
-| Events Generated | 10     |
-| Entry Events     | 6      |
-| Exit Events      | 4      |
-| Sessions Created | 5      |
-| Active Sessions  | 4      |
-| Closed Sessions  | 1      |
+* Events persisted successfully
+* Sessions created successfully
+* Worker consumed Redis stream correctly
+* Analytics services executed successfully
 
-### Database Verification
+### Infrastructure Validation
 
-Events:
+* API Container Healthy
+* Worker Container Healthy
+* PostgreSQL Healthy
+* Redis Healthy
 
-```text
-ENTRY = 6
-EXIT = 4
-```
+---
 
-Sessions:
+## Production Hardening
 
-```text
-active = 4
-closed = 1
-```
+The platform includes several safeguards commonly used in production systems:
 
-### Verified Components
+* Event Idempotency
+* Duplicate Processing Protection
+* Session Lifecycle Validation
+* Queue State Recovery
+* Timezone Normalization
+* Redis Consumer Groups
+* Worker Retry Safety
+* Database Constraints
 
-✓ YOLOv8 Detection
-
-✓ ByteTrack Tracking
-
-✓ Line Crossing Event Generation
-
-✓ Redis Stream Publishing
-
-✓ Worker Consumption
-
-✓ PostgreSQL Persistence
-
-✓ Session Management
-
-## Demo
-
-Repository:
-
-* GitHub Repository
-
-Video:
-
-* Project Demonstration Video
-
-API:
-
-* Swagger Documentation
+---
 
 ## Future Improvements
 
-* Heatmap generation
 * Multi-camera tracking
-* Re-identification across cameras
-* Dwell time analytics
+* Cross-camera re-identification
 * Real-time dashboard
+* Heatmap generation
+* Predictive staffing recommendations
 * Cloud deployment
 
-## License
+---
 
-Educational / Portfolio Project
+## Conclusion
+
+The platform demonstrates how computer vision, event-driven processing, and analytical modeling can be combined to deliver actionable retail intelligence from existing CCTV infrastructure.

@@ -25,7 +25,10 @@ async def test_redis_publish_and_consume(fake_redis) -> None:
         camera_id="camera-1",
         event_type=EventType.ENTRY,
         occurred_at=datetime.now(timezone.utc),
+        visitor_id="VIS_redis001",  # Re-ID token
         track_id="track-1",
+        confidence=0.89,  # Detection confidence
+        is_staff=False,  # Staff flag
         payload={"zone": "entry"},
     )
 

@@ -114,3 +114,130 @@ class AnalyticsRepository:
                 existing.period_start = period_start
                 existing.period_end = period_end
             await session.commit()
+
+    async def get_funnel_data(self, store_id: str, start_time: datetime, end_time: datetime) -> dict:
+        async with self._session_maker() as session:
+            # 1. Entry count
+            stmt_entry = select(func.count(SessionRecord.session_id)).where(
+                SessionRecord.store_id == store_id,
+                SessionRecord.is_staff == False,
+                SessionRecord.opened_at >= start_time,
+                SessionRecord.opened_at <= end_time,
+            )
+            entry_count = await session.scalar(stmt_entry) or 0
+            
+            # 2. Zone visit count
+            stmt_zone = (
+                select(func.count(SessionRecord.session_id.distinct()))
+                .select_from(EventRecord)
+                .join(SessionRecord, EventRecord.session_id == SessionRecord.session_id)
+                .where(
+                    SessionRecord.store_id == store_id,
+                    SessionRecord.is_staff == False,
+                    SessionRecord.opened_at >= start_time,
+                    SessionRecord.opened_at <= end_time,
+                    EventRecord.event_type == "ZONE_ENTER"
+                )
+            )
+            zone_visit_count = await session.scalar(stmt_zone) or 0
+            
+            # 3. Billing events (session_id, earliest billing_time)
+            stmt_billing = (
+                select(EventRecord.session_id, func.min(EventRecord.occurred_at))
+                .select_from(EventRecord)
+                .join(SessionRecord, EventRecord.session_id == SessionRecord.session_id)
+                .where(
+                    SessionRecord.store_id == store_id,
+                    SessionRecord.is_staff == False,
+                    SessionRecord.opened_at >= start_time,
+                    SessionRecord.opened_at <= end_time,
+                    EventRecord.event_type == "ZONE_ENTER",
+                    EventRecord.zone_id == "billing"
+                )
+                .group_by(EventRecord.session_id)
+                .order_by(func.min(EventRecord.occurred_at))
+            )
+            billing_result = await session.execute(stmt_billing)
+            billing_sessions = [
+                {"session_id": row[0], "billing_time": row[1]} 
+                for row in billing_result.all()
+            ]
+            
+            # 4. Transactions
+            from app.db.models.transaction import TransactionRecord
+            stmt_txn = (
+                select(TransactionRecord.transaction_id, TransactionRecord.timestamp)
+                .where(
+                    TransactionRecord.store_id == store_id,
+                    TransactionRecord.timestamp >= start_time,
+                    TransactionRecord.timestamp <= end_time
+                )
+                .order_by(TransactionRecord.timestamp)
+            )
+            txn_result = await session.execute(stmt_txn)
+            transactions = [
+                {"transaction_id": row[0], "timestamp": row[1]}
+                for row in txn_result.all()
+            ]
+            
+            return {
+                "entry_count": int(entry_count),
+                "zone_visit_count": int(zone_visit_count),
+                "billing_sessions": billing_sessions,
+                "transactions": transactions
+            }
+
+    async def get_queue_ledger_data(self, store_id: str, start_time: datetime, end_time: datetime) -> dict:
+        async with self._session_maker() as session:
+            # 1. Baseline: sessions in billing queue strictly before start_time
+            # Get the latest event before start_time for each session in billing zone
+            subq = (
+                select(
+                    EventRecord.session_id,
+                    func.max(EventRecord.occurred_at).label("last_event_time")
+                )
+                .join(SessionRecord, EventRecord.session_id == SessionRecord.session_id)
+                .where(
+                    SessionRecord.store_id == store_id,
+                    SessionRecord.is_staff == False,
+                    EventRecord.zone_id == "billing",
+                    EventRecord.event_type.in_(["ZONE_ENTER", "ZONE_EXIT"]),
+                    EventRecord.occurred_at < start_time
+                )
+                .group_by(EventRecord.session_id)
+                .subquery()
+            )
+            
+            baseline_stmt = (
+                select(EventRecord.session_id)
+                .join(subq, (EventRecord.session_id == subq.c.session_id) & (EventRecord.occurred_at == subq.c.last_event_time))
+                .where(EventRecord.event_type == "ZONE_ENTER")
+            )
+            
+            baseline_result = await session.execute(baseline_stmt)
+            baseline_sessions = [row[0] for row in baseline_result.all()]
+            
+            # 2. Ledger: all ENTER/EXIT events in the window
+            ledger_stmt = (
+                select(EventRecord.session_id, EventRecord.event_type, EventRecord.occurred_at)
+                .join(SessionRecord, EventRecord.session_id == SessionRecord.session_id)
+                .where(
+                    SessionRecord.store_id == store_id,
+                    SessionRecord.is_staff == False,
+                    EventRecord.zone_id == "billing",
+                    EventRecord.event_type.in_(["ZONE_ENTER", "ZONE_EXIT"]),
+                    EventRecord.occurred_at >= start_time,
+                    EventRecord.occurred_at <= end_time
+                )
+                .order_by(EventRecord.occurred_at.asc())
+            )
+            ledger_result = await session.execute(ledger_stmt)
+            ledger_events = [
+                {"session_id": row[0], "event_type": row[1], "occurred_at": row[2]}
+                for row in ledger_result.all()
+            ]
+            
+            return {
+                "baseline_sessions": baseline_sessions,
+                "ledger_events": ledger_events
+            }

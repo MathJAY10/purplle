@@ -3,6 +3,19 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
+import math
+
+
+@dataclass(frozen=True, slots=True)
+class Point2D:
+    """2D point representation for trajectory and spatial calculations."""
+
+    x: float
+    y: float
+
+    def distance_to(self, other: Point2D) -> float:
+        """Calculate Euclidean distance to another point."""
+        return math.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,13 +32,15 @@ class Detection:
     label: str
     confidence: float
     bbox: BoundingBox
+    is_staff: bool = False  # Staff detection flag
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class TrackedObject:
     track_id: int
     detection: Detection
+    visitor_id: str | None = None  # Re-ID token - unique per visit session
     frame_index: int | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 

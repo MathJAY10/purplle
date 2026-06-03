@@ -24,6 +24,7 @@ class TrackCrossingState:
     last_side: int | None = None
     last_event_frame: int | None = None
     last_seen_frame: int | None = None
+    has_entered: bool = False
 
 
 def _line_side(config: LineCrossingConfig, point: tuple[float, float]) -> int:
@@ -100,11 +101,16 @@ class LineCrossingEventGenerator:
                 or frame_number - state.last_event_frame
                 >= self.config.debounce_frames
             ):
-                event_type = (
-                    EventType.ENTRY
-                    if state.last_side < current_side
-                    else EventType.EXIT
-                )
+                is_returning = tracked_object.metadata.get("is_returning", False)
+                
+                if state.last_side < current_side:
+                    if is_returning and not state.has_entered:
+                        event_type = EventType.REENTRY
+                    else:
+                        event_type = EventType.ENTRY
+                    state.has_entered = True
+                else:
+                    event_type = EventType.EXIT
 
                 payload = {
                     "track_id": tracked_object.track_id,
@@ -141,8 +147,14 @@ class LineCrossingEventGenerator:
                         camera_id=camera_id,
                         event_type=event_type,
                         occurred_at=datetime.now(timezone.utc),
+                        visitor_id=tracked_object.visitor_id,  # Re-ID token from tracker
                         track_id=str(tracked_object.track_id),
+                        zone_id=None,  # null for ENTRY/EXIT events
+                        dwell_ms=0,  # 0 for instantaneous events
+                        is_staff=tracked_object.detection.is_staff,  # Staff classification flag
+                        confidence=tracked_object.detection.confidence,  # Detection confidence
                         payload=payload,
+                        metadata={},  # Queue depth, sku_zone handled in zone events
                     )
                 )
 

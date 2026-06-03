@@ -26,7 +26,10 @@ async def test_duplicate_event_is_idempotent(session_maker) -> None:
         camera_id="camera-entry",
         event_type=EventType.ENTRY,
         occurred_at=datetime.now(timezone.utc),
+        visitor_id="VIS_def456",  # Re-ID token
         track_id="track-1",
+        confidence=0.92,  # Detection confidence
+        is_staff=False,  # Staff flag
         payload={"door": "main"},
     )
 

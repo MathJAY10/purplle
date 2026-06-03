@@ -32,6 +32,12 @@ class SQLAlchemyEventRepository:
             occurred_at=event.occurred_at,
             track_id=event.track_id,
             session_id=event.session_id,
+            visitor_id=event.visitor_id,
+            zone_id=event.zone_id,
+            dwell_ms=event.dwell_ms,
+            is_staff=event.is_staff,
+            confidence=event.confidence,
+            metadata_json=event.metadata.model_dump() if event.metadata else {},
             payload=event.payload,
             trace_id=event.trace_id,
         )

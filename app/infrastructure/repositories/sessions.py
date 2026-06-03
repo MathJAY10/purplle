@@ -24,7 +24,27 @@ class SQLAlchemySessionRepository:
         result = await session.execute(statement)
         return result.scalar_one_or_none()
 
-    async def create_active_session(self, session: AsyncSession, store_id: str, track_id: str, entry_event_id: UUID, opened_at: datetime) -> SessionRecord:
+    async def get_active_by_store_and_visitor(self, session: AsyncSession, store_id: str, visitor_id: str) -> SessionRecord | None:
+        statement = (
+            select(SessionRecord)
+            .where(SessionRecord.store_id == store_id)
+            .where(SessionRecord.visitor_id == visitor_id)
+            .where(SessionRecord.status == "active")
+            .order_by(SessionRecord.opened_at.desc())
+        )
+        result = await session.execute(statement)
+        return result.scalar_one_or_none()
+
+    async def create_active_session(
+        self,
+        session: AsyncSession,
+        store_id: str,
+        track_id: str,
+        entry_event_id: UUID,
+        opened_at: datetime,
+        visitor_id: str | None = None,
+        is_staff: bool = False,
+    ) -> SessionRecord:
         record = SessionRecord(
             session_id=uuid4(),
             store_id=store_id,
@@ -35,6 +55,8 @@ class SQLAlchemySessionRepository:
             closed_at=None,
             duration_ms=None,
             status="active",
+            visitor_id=visitor_id,
+            is_staff=is_staff,
         )
         session.add(record)
         return record

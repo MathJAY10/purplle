@@ -24,7 +24,10 @@ async def _seed_events(session_maker) -> None:
         camera_id="camera-entry",
         event_type=EventType.ENTRY,
         occurred_at=datetime.now(timezone.utc),
+        visitor_id="VIS_test001",  # Re-ID token
         track_id="track-1",
+        confidence=0.98,  # Detection confidence
+        is_staff=False,  # Staff flag
         payload={"zone": "entry"},
     )
     exit_event = RetailEvent(
@@ -33,7 +36,10 @@ async def _seed_events(session_maker) -> None:
         camera_id="camera-entry",
         event_type=EventType.EXIT,
         occurred_at=datetime.now(timezone.utc),
+        visitor_id="VIS_test001",  # Same visitor
         track_id="track-1",
+        confidence=0.97,  # Detection confidence
+        is_staff=False,  # Staff flag
         payload={"zone": "billing"},
     )
     await processor.process(entry)

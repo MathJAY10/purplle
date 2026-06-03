@@ -13,6 +13,19 @@ class EventType(str, Enum):
     ZONE_ENTER = "ZONE_ENTER"
     ZONE_EXIT = "ZONE_EXIT"
     ZONE_DWELL = "ZONE_DWELL"
+    BILLING_QUEUE_JOIN = "BILLING_QUEUE_JOIN"
+    BILLING_QUEUE_ABANDON = "BILLING_QUEUE_ABANDON"
+    REENTRY = "REENTRY"
+
+
+class EventMetadata(BaseModel):
+    """Metadata for retail events including queue and session info."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    queue_depth: int | None = Field(default=None, ge=0)  # integer; null for non-billing events
+    sku_zone: str | None = Field(default=None, min_length=1)  # zone label from store_layout.json
+    session_seq: int | None = Field(default=None, ge=1)  # ordinal position in visitor session
 
 
 class RetailEvent(BaseModel):
@@ -24,9 +37,15 @@ class RetailEvent(BaseModel):
     camera_id: str = Field(min_length=1)
     event_type: EventType
     occurred_at: datetime
-    track_id: str | None = Field(default=None, min_length=1)
+    visitor_id: str | None = Field(default=None, min_length=1)  # Re-ID token - unique per visit session
+    track_id: str | None = Field(default=None, min_length=1)  # Camera-specific track ID
+    zone_id: str | None = Field(default=None, min_length=1)  # null for ENTRY / EXIT events
+    dwell_ms: int | None = Field(default=None, ge=0)  # duration in ms; 0 for instantaneous events
+    is_staff: bool = Field(default=False)  # model must classify this
+    confidence: float = Field(ge=0.0, le=1.0)  # detection confidence - do not suppress low-conf events
     session_id: UUID | None = None
     payload: dict[str, object] = Field(default_factory=dict)
+    metadata: EventMetadata = Field(default_factory=EventMetadata)  # queue_depth, sku_zone, session_seq
     trace_id: str | None = Field(default=None, min_length=1)
 
     @field_validator("idempotency_key")
